@@ -1,0 +1,9 @@
+.deps/
+*.o
+aclocal.m4
+autom4te.cache/
+bfi
+build-aux/
+configure
+m4/
+Makefile.in
