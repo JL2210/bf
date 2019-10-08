@@ -24,9 +24,10 @@
 #define DEF_MEM_SIZE 32768
 
 #define ezs(x) (x)
+#define exit_if_true(x, y) if(x) exit_perr(y)
 
 void bf_interp(unsigned char *, const unsigned char *, size_t, size_t);
-void exit_if_true(int, const char *);
+void exit_perr(const char *);
 unsigned char *read_file(const char *, size_t *);
 
 int main(int argc, char **argv)
@@ -196,11 +197,8 @@ unsigned char *read_file(const char *argv1, size_t *size)
     return file;
 }
 
-void exit_if_true(int err, const char *func)
+void exit_perr(const char *str)
 {
-    if(err)
-    {
-        perror(func);
-        exit(1);
-    }
+    perror(str);
+    exit(1);
 }
