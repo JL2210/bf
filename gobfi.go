@@ -20,93 +20,91 @@
 package main
 
 import (
-   "os"
-   "fmt"
-   "bufio"
-   "io/ioutil"
+    "os"
+    "fmt"
+    "bufio"
+    "io/ioutil"
 )
 
-const default_slice_size = 30000
-var slice_size = default_slice_size
+const default_slice_size = 32768
 
 func main() {
-   sp := make([]byte, slice_size)
+    sp := make([]byte, default_slice_size)
 
-   if len(os.Args) > 1 {
-      name := os.Args[1]
+    if len(os.Args) == 2 {
+        name := os.Args[1]
 
-      ip, err := ioutil.ReadFile(name)
+        ip, err := ioutil.ReadFile(name)
 
-      if err != nil {
-         fmt.Fprintln(os.Stderr, err)
-         return
-      }
+        if err != nil {
+            fmt.Fprintln(os.Stderr, err)
+            return
+        }
 
-      bf_interp(sp, ip)
-   } else {
-      fmt.Fprintln(os.Stderr, "Error: Incorrect number of arguments")
-      fmt.Fprintln(os.Stderr, "  Usage:", os.Args[0], "[file] (args...)")
-   }
+        bf_interp(sp, ip)
+    } else {
+        fmt.Fprintln(os.Stderr, "Error: Incorrect number of arguments")
+        fmt.Fprintln(os.Stderr, "  Usage:", os.Args[0], "bf-file")
+    }
 }
 
 func bf_interp(sp, ip []byte) {
-   var spc, ipc int
+    var spc, ipc int
 
-   stdout := bufio.NewWriter(os.Stdout)
-   stdin  := bufio.NewReader(os.Stdin)
-   defer stdout.Flush()
+    stdout := bufio.NewWriter(os.Stdout)
+    stdin  := bufio.NewReader(os.Stdin)
+    defer stdout.Flush()
 
-   for ipc < len(ip) {
-      switch ip[ipc] {
-         case '>':
-            spc++
-            if spc >= slice_size {
-               sp = append(sp, make([]byte, default_slice_size)...)
-               slice_size += default_slice_size
-            }
-         case '<':
-            spc--
-         case '+':
-            sp[spc]++
-         case '-':
-            sp[spc]--
-         case '.':
-            err := stdout.WriteByte(sp[spc])
-            if err != nil {
-               fmt.Fprintln(os.Stderr, err)
-               return
-            }
-         case ',':
-            stdout.Flush()
-            c, err := stdin.ReadByte()
-            if err == nil {
-               sp[spc] = c
-            }
-         case '[':
-            if sp[spc] == 0 {
-               ipc++
-               for nest := 1; nest != 0; ipc++ {
-                  if ip[ipc] == '[' {
-                     nest++
-                  } else if ip[ipc] == ']' {
-                     nest--
-                  }
-               }
-            }
-         case ']':
-            if sp[spc] != 0 {
-               ipc--
-               for nest := 1; nest != 0; ipc-- {
-                  if ip[ipc] == '[' {
-                     nest--
-                  } else if ip[ipc] == ']' {
-                     nest++
-                  }
-               }
-            }
-         default:
-            break
-      }
-      ipc++
-   }
+    for ipc < len(ip) {
+        switch ip[ipc] {
+            case '>':
+                spc++
+                if spc >= len(sp) {
+                    sp = append(sp, make([]byte, default_slice_size)...)
+                }
+            case '<':
+                spc--
+            case '+':
+                sp[spc]++
+            case '-':
+                sp[spc]--
+            case '.':
+                err := stdout.WriteByte(sp[spc])
+                if err != nil {
+                    fmt.Fprintln(os.Stderr, err)
+                    return
+                }
+            case ',':
+                stdout.Flush()
+                c, err := stdin.ReadByte()
+                if err == nil {
+                    sp[spc] = c
+                }
+            case '[':
+                if sp[spc] == 0 {
+                    ipc++
+                    for nest := 1; nest != 0; ipc++ {
+                        if ip[ipc] == '[' {
+                            nest++
+                        } else if ip[ipc] == ']' {
+                            nest--
+                        }
+                    }
+                }
+            case ']':
+                if sp[spc] != 0 {
+                    ipc--
+                    for nest := 1; nest != 0; ipc-- {
+                        if ip[ipc] == '[' {
+                            nest--
+                        } else if ip[ipc] == ']' {
+                            nest++
+                        }
+                    }
+                }
+            default:
+                break
+        }
+        ipc++
+    }
 }

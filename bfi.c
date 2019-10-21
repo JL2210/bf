@@ -23,11 +23,17 @@
 
 #define DEF_MEM_SIZE 32768
 
-#define ezs(x) (x)
-#define exit_if_true(x, y) if(x) exit_perr(y)
+#define cast(x) (x)
+#define exit_if_true(x, y)	\
+    do {			\
+        if(x)			\
+        {			\
+            perror_and_exit(y);	\
+        }			\
+    } while(0)
 
-void bf_interp(unsigned char *, const unsigned char *, size_t, size_t);
-void exit_perr(const char *);
+void interpret_brainfuck(unsigned char *, const unsigned char *, size_t, size_t);
+void perror_and_exit(const char *);
 unsigned char *read_file(const char *, size_t *);
 
 int main(int argc, char **argv)
@@ -39,27 +45,26 @@ int main(int argc, char **argv)
     if(argc != 2)
     {
         fprintf(stderr, "Error: Incorrect number of arguments\n"
-                        "  Usage: %s [file] (args...)\n", argv[0]);
-        return 1;
+                        "  Usage: %s bf-file\n", argv[0]);
+        return EXIT_FAILURE;
     }
 
     file = read_file(argv[1], &file_size);
-    mem = calloc(sizeof(*mem), mem_size);
+    mem = cast(unsigned char *)calloc(mem_size, sizeof(*mem));
     exit_if_true(mem == NULL, "calloc()");
 
-    bf_interp(mem, file, mem_size, file_size);
+    interpret_brainfuck(mem, file, mem_size, file_size);
 
-    free(mem);
     free(file);
 
     return 0;
 }
 
-void bf_interp(unsigned char *sp, const unsigned char *ip, size_t sp_size, size_t ip_size)
+void interpret_brainfuck(unsigned char *sp, const unsigned char *ip, size_t sp_size, size_t ip_size)
 {
     long spc = 0, ipc = 0;
 
-    while(ezs(size_t)ipc < ip_size)
+    while(cast(size_t)ipc < ip_size)
     {
         /* I would put this inside the switch
          * but clang warns about "unreachable code".
@@ -70,20 +75,13 @@ void bf_interp(unsigned char *sp, const unsigned char *ip, size_t sp_size, size_
             case '>':
             {
                 spc++;
-                if(ezs(size_t)spc >= sp_size)
+                if(cast(size_t)spc >= sp_size)
                 {
-                    unsigned char *tmp;
+                    sp = cast(unsigned char *)realloc(sp, sp_size + DEF_MEM_SIZE);
+                    exit_if_true(sp == NULL, "realloc()");
 
-                    tmp = realloc(sp, sp_size + DEF_MEM_SIZE);
-                    exit_if_true(tmp == NULL, "realloc()");
-
-                    memset(tmp+sp_size, 0, DEF_MEM_SIZE);
-                    memcpy(tmp, sp, sp_size);
-
+                    memset(sp+sp_size, 0, DEF_MEM_SIZE);
                     sp_size += DEF_MEM_SIZE;
-
-                    free(sp);
-                    sp = tmp;
                 }
                 break;
             }
@@ -116,7 +114,7 @@ void bf_interp(unsigned char *sp, const unsigned char *ip, size_t sp_size, size_
             {
                 int c = getchar();
                 if(c != EOF)
-                    sp[spc] = ezs(unsigned char)c;
+                    sp[spc] = cast(unsigned char)c;
                 break;
             }
             case '[':
@@ -126,7 +124,7 @@ void bf_interp(unsigned char *sp, const unsigned char *ip, size_t sp_size, size_
                     for( nest = 1; nest; )
                     {
                         ipc++;
-                        if(ezs(size_t)ipc >= ip_size)
+                        if(cast(size_t)ipc >= ip_size)
                         {
                             fputs("Error: ipc >= ip_size\n", stderr);
                             exit(1);
@@ -160,12 +158,13 @@ void bf_interp(unsigned char *sp, const unsigned char *ip, size_t sp_size, size_
         }
         ipc++;
     }
+    free(sp);
 }
 
 unsigned char *read_file(const char *argv1, size_t *size)
 {
+    unsigned long bytes_read, sz;
     unsigned char *file;
-    size_t was_read, sz;
     FILE *fp;
 
     fp = fopen(argv1, "r");
@@ -173,22 +172,22 @@ unsigned char *read_file(const char *argv1, size_t *size)
 
     exit_if_true(fseek(fp, 0L, SEEK_END) == -1, "fseek()");
 
-    sz = ezs(size_t)ftell(fp);
-    exit_if_true(sz == ezs(size_t)-1, "ftell()");
+    sz = cast(unsigned long)ftell(fp);
+    exit_if_true(sz == -1UL, "ftell()");
 
     *size = sz;
 
-    file = malloc(sz);
+    file = cast(unsigned char *)malloc(sz);
     exit_if_true(file == NULL, "malloc()");
 
     exit_if_true(fseek(fp, 0L, SEEK_SET) == -1, "fseek()");
 
-    was_read = fread(file, 1, sz, fp);
-    if(was_read != sz)
+    bytes_read = fread(file, 1, sz, fp);
+    if(bytes_read != sz)
     {
         fprintf(stderr, "Unable to read file.\n"
-                        "Read %zu bytes when %zu bytes were expected\n",
-                        was_read, sz);
+                        "Read %lu bytes when %lu bytes were expected\n",
+                        bytes_read, sz);
         exit(1);
     }
 
@@ -197,7 +196,7 @@ unsigned char *read_file(const char *argv1, size_t *size)
     return file;
 }
 
-void exit_perr(const char *str)
+void perror_and_exit(const char *str)
 {
     perror(str);
     exit(1);
