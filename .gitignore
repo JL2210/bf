@@ -4,6 +4,9 @@ aclocal.m4
 autom4te.cache/
 bfi
 build-aux/
+config.log
+config.status
 configure
 m4/
+Makefile
 Makefile.in
