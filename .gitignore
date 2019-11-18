@@ -2,6 +2,7 @@
 *.o
 aclocal.m4
 autom4te.cache/
+bf2c
 bfi
 build-aux/
 config.log
