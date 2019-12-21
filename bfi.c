@@ -24,20 +24,13 @@
 #define DEF_MEM_SIZE 32768
 
 #define cast(x) (x)
-#define exit_if_true(x, y)	\
-    do {			\
-        if(x)			\
-        {			\
-            perror_and_exit(y);	\
-        }			\
-    } while(0)
 
-void interpret_brainfuck(unsigned char *, const unsigned char *, size_t, size_t);
-void perror_and_exit(const char *);
+int interpret_brainfuck(unsigned char *, const unsigned char *, size_t, size_t);
 unsigned char *read_file(const char *, size_t *);
 
 int main(int argc, char **argv)
 {
+    int ret;
     size_t file_size,
            mem_size = DEF_MEM_SIZE;
     unsigned char *file, *mem;
@@ -50,17 +43,27 @@ int main(int argc, char **argv)
     }
 
     file = read_file(argv[1], &file_size);
-    mem = cast(unsigned char *)calloc(mem_size, sizeof(*mem));
-    exit_if_true(mem == NULL, "calloc()");
+    if(file == NULL)
+    {
+        perror("read_file");
+        return EXIT_FAILURE;
+    }
 
-    interpret_brainfuck(mem, file, mem_size, file_size);
+    mem = cast(unsigned char *)calloc(mem_size, sizeof(*mem));
+    if(mem == NULL)
+    {
+        perror("calloc()");
+        return EXIT_FAILURE;
+    }
+
+    ret = interpret_brainfuck(mem, file, mem_size, file_size);
 
     free(file);
 
-    return 0;
+    return ret;
 }
 
-void interpret_brainfuck(unsigned char *sp, const unsigned char *ip, size_t sp_size, size_t ip_size)
+int interpret_brainfuck(unsigned char *sp, const unsigned char *ip, size_t sp_size, size_t ip_size)
 {
     long spc = 0, ipc = 0;
 
@@ -78,7 +81,11 @@ void interpret_brainfuck(unsigned char *sp, const unsigned char *ip, size_t sp_s
                 if(cast(size_t)spc >= sp_size)
                 {
                     sp = cast(unsigned char *)realloc(sp, sp_size + DEF_MEM_SIZE);
-                    exit_if_true(sp == NULL, "realloc()");
+                    if(sp == NULL)
+                    {
+                        perror("realloc()");
+                        return EXIT_FAILURE;
+                    }
 
                     memset(sp+sp_size, 0, DEF_MEM_SIZE);
                     sp_size += DEF_MEM_SIZE;
@@ -108,11 +115,15 @@ void interpret_brainfuck(unsigned char *sp, const unsigned char *ip, size_t sp_s
             case '.':
             {
                 putchar(sp[spc]);
+                if(sp[spc] == '\n');
+                    fflush(stdout);
                 break;
             }
             case ',':
             {
-                int c = getchar();
+                int c;
+                fflush(stdout);
+                c = getchar();
                 if(c != EOF)
                     sp[spc] = cast(unsigned char)c;
                 break;
@@ -159,45 +170,5 @@ void interpret_brainfuck(unsigned char *sp, const unsigned char *ip, size_t sp_s
         ipc++;
     }
     free(sp);
-}
-
-unsigned char *read_file(const char *argv1, size_t *size)
-{
-    unsigned long bytes_read, sz;
-    unsigned char *file;
-    FILE *fp;
-
-    fp = fopen(argv1, "r");
-    exit_if_true(fp == NULL, "fopen()");
-
-    exit_if_true(fseek(fp, 0L, SEEK_END) == -1, "fseek()");
-
-    sz = cast(unsigned long)ftell(fp);
-    exit_if_true(sz == -1UL, "ftell()");
-
-    *size = sz;
-
-    file = cast(unsigned char *)malloc(sz);
-    exit_if_true(file == NULL, "malloc()");
-
-    exit_if_true(fseek(fp, 0L, SEEK_SET) == -1, "fseek()");
-
-    bytes_read = fread(file, 1, sz, fp);
-    if(bytes_read != sz)
-    {
-        fprintf(stderr, "Unable to read file.\n"
-                        "Read %lu bytes when %lu bytes were expected\n",
-                        bytes_read, sz);
-        exit(1);
-    }
-
-    exit_if_true(fclose(fp) == EOF, "fclose()");
-
-    return file;
-}
-
-void perror_and_exit(const char *str)
-{
-    perror(str);
-    exit(1);
+    return EXIT_SUCCESS;
 }

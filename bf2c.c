@@ -31,37 +31,58 @@
 #define STR_(x) #x
 
 #define cast(x) (x)
-#define exit_if_true(x, y)	\
-    do {			\
-        if(x)			\
-        {			\
-            perror_and_exit(y);	\
-        }			\
-    } while(0)
 
 void convert_brainfuck(FILE *out, const unsigned char *in, size_t insz, int opt);
-void perror_and_exit(const char *);
 unsigned char *read_file(const char *, size_t *);
 
 int main(int argc, char **argv)
 {
+    unsigned argctr = 1,
+             flag = 0;
     FILE *out = stdout;
     size_t file_size;
     unsigned char *file;
 
-    if((unsigned)argc - 2 > 1)
+    if((unsigned)argc - 2 > 2)
     {
         fprintf(stderr, "Error: Incorrect number of arguments\n"
-                        "  Usage: %s bf-file [out-file]\n", argv[0]);
+                        "  Usage: %s [-nze] bf-file [out-file]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
-    if(argc == 3)
+    if(argv[argctr][0] == '-' || argv[argctr][0] == '/')
     {
-        out = fopen(argv[2], "w");
+        switch(argv[argctr][1])
+        {
+            case 'n':
+                flag = NO_CHANGE_ON_EOF;
+                break;
+            case 'z':
+                flag = ZERO_ON_EOF;
+                break;
+            case 'e':
+                /* default */
+                break;
+        }
+        argctr++;
     }
 
-    file = read_file(argv[1], &file_size);
+    file = read_file(argv[argctr++], &file_size);
+    if(file == NULL)
+    {
+        perror("read_file");
+        return EXIT_FAILURE;
+    }
+
+    if(argc >= argctr)
+    {
+        out = fopen(argv[argctr], "w");
+        if(out == NULL)
+        {
+            perror("fopen");
+            return EXIT_FAILURE;
+        }
+    }
 
     fprintf(out, "#include <stdio.h>\n"
                  "unsigned char tape[%u];\n"
@@ -71,8 +92,7 @@ int main(int argc, char **argv)
                  "int c;\n",
                  DEF_MEM_SIZE);
 
-    /* TODO: Add an argument system that changes the compilation mode */
-    convert_brainfuck(out, file, file_size, EOF_ON_EOF);
+    convert_brainfuck(out, file, file_size, flag);
 
     fputs("return 0;\n"
           "}\n",
@@ -118,12 +138,12 @@ void convert_brainfuck(FILE *out, const unsigned char *ip, size_t ip_size, int o
             }
             case ',':
             {
-                if(opt & ZERO_ON_EOF)
-                    fputs("*ptr = (c = getchar()) == -1 ? 0 : c;\n", out);
-                else if(opt & EOF_ON_EOF)
-                    fputs("*ptr = getchar();\n", out);
-                else
+                if(opt & NO_CHANGE_ON_EOF)
                     fputs("if((c = getchar()) != EOF) *ptr = c;\n", out);
+                else if(opt & ZERO_ON_EOF)
+                    fputs("*ptr = (c = getchar()) == -1 ? 0 : c;\n", out);
+                else /* if(opt & EOF_ON_EOF) */
+                    fputs("*ptr = getchar();\n", out);
                 break;
             }
             case '[':
@@ -141,45 +161,4 @@ void convert_brainfuck(FILE *out, const unsigned char *ip, size_t ip_size, int o
         }
         ipc++;
     }
-}
-
-unsigned char *read_file(const char *argv1, size_t *size)
-{
-    unsigned long bytes_read, sz;
-    unsigned char *file;
-    FILE *fp;
-
-    fp = fopen(argv1, "r");
-    exit_if_true(fp == NULL, "fopen()");
-
-    exit_if_true(fseek(fp, 0L, SEEK_END) == -1, "fseek()");
-
-    sz = cast(unsigned long)ftell(fp);
-    exit_if_true(sz == -1UL, "ftell()");
-
-    *size = sz;
-
-    file = cast(unsigned char *)malloc(sz);
-    exit_if_true(file == NULL, "malloc()");
-
-    exit_if_true(fseek(fp, 0L, SEEK_SET) == -1, "fseek()");
-
-    bytes_read = fread(file, 1, sz, fp);
-    if(bytes_read != sz)
-    {
-        fprintf(stderr, "Unable to read file.\n"
-                        "Read %lu bytes when %lu bytes were expected\n",
-                        bytes_read, sz);
-        exit(1);
-    }
-
-    exit_if_true(fclose(fp) == EOF, "fclose()");
-
-    return file;
-}
-
-void perror_and_exit(const char *str)
-{
-    perror(str);
-    exit(1);
 }
