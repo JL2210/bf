@@ -74,7 +74,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    if(argc >= argctr)
+    if((unsigned)argc >= argctr)
     {
         out = fopen(argv[argctr], "w");
         if(out == NULL)

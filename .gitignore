@@ -8,6 +8,5 @@ build-aux/
 config.log
 config.status
 configure
-m4/
 Makefile
 Makefile.in

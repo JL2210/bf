@@ -115,7 +115,7 @@ int interpret_brainfuck(unsigned char *sp, const unsigned char *ip, size_t sp_si
             case '.':
             {
                 putchar(sp[spc]);
-                if(sp[spc] == '\n');
+                if(sp[spc] == '\n')
                     fflush(stdout);
                 break;
             }
